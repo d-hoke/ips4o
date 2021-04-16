@@ -42,7 +42,8 @@
 #include <numeric>
 #include <vector>
 
-#include <tbb/concurrent_queue.h>
+//#include <tbb/concurrent_queue.h>
+#include <moodycamel/concurrentqueue.h>
 
 namespace ips4o {
 namespace detail {
@@ -125,13 +126,22 @@ class Scheduler {
         }
 
         // Try to get global job.
+#if 01
+        const bool succ = m_glob_queue.try_dequeue(j);
+#else
         const bool succ = m_glob_queue.try_pop(j);
+#endif
         if (succ) return succ;
 
         // Signal idle.
         m_num_idle_threads.fetch_add(1, std::memory_order_relaxed);
 
         while (m_num_idle_threads.load(std::memory_order_relaxed) != m_num_threads) {
+#if 01
+	    if(m_glob_queue.try_dequeue(j)) {
+                m_num_idle_threads.fetch_sub(1, std::memory_order_relaxed);
+	        return true;
+#else
             if (!m_glob_queue.empty()) {
                 m_num_idle_threads.fetch_sub(1, std::memory_order_relaxed);
 
@@ -139,6 +149,7 @@ class Scheduler {
                 if (succ) {
                     return succ;
                 }
+#endif
 
                 m_num_idle_threads.fetch_add(1, std::memory_order_relaxed);
             }
@@ -149,19 +160,32 @@ class Scheduler {
 
     void offerJob(PrivateQueue<Job>& my_queue) {
         if (my_queue.size() > 1 && m_num_idle_threads.load(std::memory_order_relaxed) > 0
+//TBD: how to do with moodycamel??
+#if 01
+	    //apparently *can* return 0 even if Q not empty, not sure how that will work...
+            && 0==m_glob_queue.size_approx()) {
+#else
             && m_glob_queue.empty()) {
+#endif
             addJob(my_queue.popFront());
         }
     }
 
+#if 01
+    void addJob(const Job& j) { m_glob_queue.enqueue(j); }
+
+    void addJob(const Job&& j) { m_glob_queue.enqueue(j); }
+#else
     void addJob(const Job& j) { m_glob_queue.push(j); }
 
     void addJob(const Job&& j) { m_glob_queue.push(j); }
+#endif
 
     void reset() { m_num_idle_threads.store(0, std::memory_order_relaxed); }
 
  protected:
-    tbb::concurrent_queue<Job> m_glob_queue;
+    //tbb::concurrent_queue<Job> m_glob_queue;
+    moodycamel::ConcurrentQueue<Job> m_glob_queue;
     std::atomic_uint64_t m_num_idle_threads;
     const size_t m_num_threads;
 };

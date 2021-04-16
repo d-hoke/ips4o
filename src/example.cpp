@@ -51,8 +51,10 @@ int main(int argc, char** argv) {
     }
 
 #if defined(_REENTRANT)
+    printf("parallel\n");
     ips4o::parallel::sort(v.begin(), v.end(), std::less<>{});
 #else
+    printf("non-parallel\n");
     ips4o::sort(v.begin(), v.end(), std::less<>{});
 #endif
     

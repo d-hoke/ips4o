@@ -1,0 +1,1 @@
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS="-D=_REENTRANT=1" -DCMAKE_EXE_LINKER_FLAGS="-lpthread -latomic" ..

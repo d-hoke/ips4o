@@ -47,7 +47,8 @@
 #include <utility>
 #include <vector>
 
-#include <tbb/concurrent_queue.h>
+//#include <tbb/concurrent_queue.h>
+#include <moodycamel/concurrentqueue.h>
 
 #include "ips4o_fwd.hpp"
 #include "config.hpp"
